@@ -1,9 +1,9 @@
 import random
 import datetime
+import os
 import faker
 
 MEDICINE = [['Adderall'], ['Amitriptilina'], ['Amlodipina'], ['Amoxicilina'], ['Ativan'], ['Atorvastatina'], ['Azitromicina'], ['Benzonatato'], ['Botox'], ['Brilinta'], ['Bunavail'], ['Buprenorfina'], ['Cefalexina'], ['Ciprofloxacina'], ['Citalopram'], ['Clindamicina'], ['Clonazepam'], ['Ciclobenzaprina'], ['Cymbalta'], ['Doxiciclina'], ['Dupixente'], ['Entresto'], ['Entívio'], ['Farxiga'], ['Adesivo de Fentanil'], ['Gabapentina'], ['Gemtesa'], ['Humira'], ['Hidroclorotiazida'], ['Ibuprofeno'], ['Imbruvica'], ['Janúvia'], ['Jardiance'], ['Lexapro'], ['Lisinopril'], ['Lofexidina'], ['Loratadina'], ['Lírica'], ['Melatonina'], ['Meloxicam'], ['Metformina'], ['Metadona'], ['Metotrexato'], ['Metoprolol'], ['Mounjaro'], ['Naltrexona'], ['Naproxeno'], ['Narcano'], ['Nurtec'], ['Omeprazol'], ['Opdivo'], ['Otezla'], ['Ozempico'], ['Pantoprazol'], ['Plano B'], ['Prednisona'], ['Probufina'], ['Qulipta'], ['Quviviq'], ['Ribelso'], ['Tepezza'], ['Tramadol'], ['Trazodona'], ['Viagra'], ['Vraylar'], ['Wegovy'], ['Wellbutrin'], ['Xanax'], ['Ervoy'], ['Zubsolv']]
-CLINICS_ADDRESS = ["Oeiras","Alverca", "Sintra", "Benfica","Amadora"]
 SPECIALITIES = ["radiologia","ortopedia","cardiologia","neurologia","oncologia"]
 SYMPTOMS = ['Dor de cabeça', 'Náusea', 'Tontura', 'Fadiga', 'Dor no peito', 'Falta de ar', 'Dor abdominal', 'Dor nas costas', 'Febre', 'Tosse', 'Espirros', 'Coriza', 'Dor de garganta', 'Calafrios', 'Suores noturnos', 'Perda de apetite', 'Perda de peso', 'Ganho de peso', 'Vermelhidão nos olhos', 'Coceira', 'Erupção cutânea', 'Inchaço', 'Dor nas articulações', 'Dificuldade para engolir', 'Sensação de queimação ao urinar', 'Urina turva', 'Fezes com sangue', 'Diarreia', 'Constipação', 'Palpitações', 'Ansiedade', 'Depressão', 'Confusão mental', 'Insônia', 'Sonolência excessiva', 'Zumbido nos ouvidos', 'Alterações na visão', 'Sensibilidade à luz', 'Perda de audição', 'Boca seca', 'Perda de olfato', 'Perda de paladar', 'Vômitos', 'Sangramento nasal', 'Hematomas frequentes', 'Sangramento nas gengivas', 'Sensação de formigamento', 'Rigidez muscular', 'Desmaio', 'Dificuldade para respirar à noite']
 METRICS = ['Temperatura corporal (°C)', 'Pressão arterial (mmHg)', 'Frequência cardíaca (bpm)', 'Saturação de oxigênio (%)', 'Frequência respiratória (respirações/min)', 'Glicemia (mg/dL)', 'Nível de colesterol total (mg/dL)', 'Triglicerídeos (mg/dL)', 'Peso corporal (kg)', 'Altura (cm)', 'Índice de Massa Corporal (IMC)', 'Circunferência da cintura (cm)', 'Nível de hemoglobina (g/dL)', 'Contagem de leucócitos (milhões/mm3)', 'Contagem de plaquetas (milhares/mm3)', 'Nível de creatinina (mg/dL)', 'Taxa de filtração glomerular (TFG)', 'Bilirrubina total (mg/dL)', 'Nível de albumina (g/dL)', 'Tempo de protrombina (segundos)']
@@ -17,11 +17,6 @@ fake = faker.Faker("pt_PT")
 def get_random_address():
     address = fake.city() + " " + fake.street_name() + " " + fake.building_number() + " " + fake.postcode()
     return address
-    
-# Clinic
-# - Name
-# - Phone
-# - Address
 
 def populate_clinics():
     # Creates a CSV file with the clinics
@@ -41,13 +36,6 @@ def read_clinics():
             name, phone, address = row.strip().split(",")
             clinics.append([name, phone, address])
     return clinics
-
-# Nurse
-# - NIF
-# - Name
-# - Phone
-# - Address
-# - Clinic
 
 def populate_nurses():
     clinics = read_clinics()
@@ -71,13 +59,6 @@ def read_nurses():
             nurse = [nif, name, phone, address, clinic]
             nurses.append(nurse)
     return nurses
-    
-# Medic
-# - NIF
-# - Name
-# - Phone
-# - Address
-# - Speciality
 
 def populate_medics():
     with open("medico.csv","w", encoding='utf-8') as csvfile:
@@ -106,14 +87,6 @@ def read_medics():
             medic = [nif, name, phone, address, speciality]
             medics.append(medic)
     return medics
-
-# Trabalha
-# - NIF related to Medic
-# - name related to Clinic
-# - Weekday (1-7)
-#  Cada médico deve trabalhar em pelo menos duas clínicas.
-#  cada clínica a cada dia da semana (incluindo
-# fins de semana), devem estar pelo menos 8 médicos, e o médico só pode trabalhar numa única clínica por dia.
 
 def populate_trabalha():
     nifs = [medic[0] for medic in read_medics()]
@@ -157,14 +130,6 @@ def read_trabalha():
             trabalha.append([nif, clinic, weekday])
     return trabalha
 
-# Patient
-# - SSN (UNIQUE)
-# - NIF (UNIQUE)
-# - Name
-# - Phone
-# - Address
-# - Birthdate
-
 def populate_patients():
     with open("paciente.csv","w", encoding='utf-8') as csvfile:
         csvfile.write("SSN,NIF,Name,Phone,Address,Birthdate\n")
@@ -186,17 +151,6 @@ def read_patients():
             patient = [ssn, nif, name, phone, address, birthdate]
             patients.append(patient)
     return patients
-
-# Consulta
-# - ID (UNIQUE)
-# - SSN related to Patient
-# - NIF related to Medic
-# - Name related to Clinic
-# - Date
-# - Time
-# - SNSCODE (UNIQUE) Char(12) '^[0-9]+$'
-# UNIQUE (SSN, Date, Time)
-# UNIQUE (NIF, Date, Time)
 
 def populate_consulta():
     patients = [patient[0] for patient in read_patients()]
@@ -259,13 +213,6 @@ def read_consultas():
             consulta.append([id, ssn, medic, clinic, date, time, snscod])
     return consulta
 
-# Receita
-# - SNSCODE related to Consulta
-# - medicine VARCHAR(155)
-# - dosage SMALLINT > 0
-# ~80% das consultas tem receita médica associada, e as receitas têm 1 a 6 medicamentos em
-# quantidades entre 1 e 3
-
 def populate_receita():
     snscodes = [consulta[6] for consulta in read_consultas()]
     with open("receita.csv","w", encoding='utf-8') as csvfile:
@@ -290,13 +237,6 @@ def read_receita():
             snscod, medicine, dosage = row.strip().split(",")
             receita.append([snscod, medicine, dosage])
     return receita
-
-# Observação
-# - id related to Consulta
-# - observation VARCHAR(155)
-# - value FLOAT
-# Todas as consultas têm 1 a 5 observações de sintomas (com parâmetro mas sem valor) e 0 a 3
-# observações métricas (com parâmetro e valor).
 
 def populate_observacao():
     ids = [consulta[0] for consulta in read_consultas()]
@@ -385,4 +325,35 @@ def csv_to_sql():
         sqlfile.write("\n")
 
 if __name__ == "__main__":
-    csv_to_sql()
+    while(True):
+        print("Selecione a opção que deseja executar:")
+        print("1 - Criar ficheiro SQL")
+        print("q - Sair")
+        input_option = input()
+
+        if input_option == "1":
+            populate_clinics()
+            populate_nurses()
+            populate_medics()
+            populate_trabalha()
+            populate_patients()
+            populate_consulta()
+            populate_receita()
+            populate_observacao()
+            csv_to_sql()
+            delete_csv = input("Deseja apagar os ficheiros CSV criados? (s/n): ")
+            if delete_csv == "s":
+                os.remove("clinica.csv")
+                os.remove("enfermeiro.csv")
+                os.remove("medico.csv")
+                os.remove("trabalha.csv")
+                os.remove("paciente.csv")
+                os.remove("consulta.csv")
+                os.remove("receita.csv")
+                os.remove("observacao.csv")
+            print("Ficheiro SQL criado com sucesso!")
+            break
+            
+
+        elif input_option == "q":
+            break
