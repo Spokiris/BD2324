@@ -21,7 +21,7 @@ def get_random_address():
 def populate_clinics():
     # Creates a CSV file with the clinics
     with open("clinica.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("nome,telefone,morada\n")
+        csvfile.write("nome, telefone, morada\n")
         for i in range(MAX_CLINICS):
             name = "Clínica " + fake.company()
             phone = random.randint(900000000, 999999999)
@@ -41,7 +41,7 @@ def populate_nurses():
     clinics = read_clinics()
     # Creates a CSV file with the nurses
     with open("enfermeiro.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("nif,nome,telefone,morada,nome_clinica\n")
+        csvfile.write("nif, nome, telefone, morada, nome_clinica\n")
         for i in range(MAX_CLINICS):
             for j in range(MAX_NURSES):
                 nif = random.randint(100000000, 999999999)
@@ -62,7 +62,7 @@ def read_nurses():
 
 def populate_medics():
     with open("medico.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("nif,nome,telefone,morada,Speciality\n")
+        csvfile.write("nif, nome, telefone, morada, especialidade\n")
         for i in range(20):
             nif = random.randint(100000000, 999999999)
             name = fake.name()
@@ -116,7 +116,7 @@ def populate_trabalha():
 
     # Write the schedule to the CSV file
     with open("trabalha.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("nif,nome_clinica,Weekday\n")
+        csvfile.write("nif, nome_clinica, dia_da_semana\n")
         for nif, workdays in schedule.items():
             for clinic, day in workdays:
                 csvfile.write(f"{nif},{clinic},{day}\n")
@@ -132,7 +132,7 @@ def read_trabalha():
 
 def populate_patients():
     with open("paciente.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("ssn,nif,nome,telefone,morada,Birthdate\n")
+        csvfile.write("ssn, nif, nome, telefone, morada, data_nasc\n")
         for i in range(MAX_PATIENTS):
             ssn = random.randint(100000000, 999999999)
             nif = random.randint(100000000, 999999999)
@@ -199,7 +199,7 @@ def populate_consulta():
 
     # Write the schedule to the CSV file
     with open("consulta.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("ID,ssn,nif,nome_clinica,Date,Time,SNSCODE\n")
+        csvfile.write("id, ssn, nif, nome, data, hora, codigo_sns\n")
         for id, (ssn, medic, clinic, date, time, snscod) in appointments.items():
             date_str = (datetime.datetime(2023, 1, 1) + datetime.timedelta(days=date-1)).strftime('%Y-%m-%d')
             csvfile.write(f"{id},{ssn},{medic},{clinic},{date_str},{time},{snscod}\n")
@@ -216,7 +216,7 @@ def read_consultas():
 def populate_receita():
     snscodes = [consulta[6] for consulta in read_consultas()]
     with open("receita.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("SNSCODE,Medicine,Dosage\n")
+        csvfile.write("codigo_ssn, medicamento, quantidade\n")
         for snscod in snscodes:
             if random.random() > 0.8:
                 continue
@@ -241,7 +241,7 @@ def read_receita():
 def populate_observacao():
     ids = [consulta[0] for consulta in read_consultas()]
     with open("observacao.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("ID,Observation,Value\n")
+        csvfile.write("id, parametro, valor\n")
         for id in ids:
             symptoms_count = random.randint(1, 5)
             symptoms = random.sample(SYMPTOMS, symptoms_count)
