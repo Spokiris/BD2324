@@ -21,7 +21,7 @@ def get_random_address():
 def populate_clinics():
     # Creates a CSV file with the clinics
     with open("clinica.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("Name,Phone,Address\n")
+        csvfile.write("nome,telefone,morada\n")
         for i in range(MAX_CLINICS):
             name = "Clínica " + fake.company()
             phone = random.randint(900000000, 999999999)
@@ -41,7 +41,7 @@ def populate_nurses():
     clinics = read_clinics()
     # Creates a CSV file with the nurses
     with open("enfermeiro.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("NIF,Name,Phone,Address,Clinic\n")
+        csvfile.write("nif,nome,telefone,morada,nome_clinica\n")
         for i in range(MAX_CLINICS):
             for j in range(MAX_NURSES):
                 nif = random.randint(100000000, 999999999)
@@ -55,14 +55,14 @@ def read_nurses():
     with open("enfermeiro.csv", "r", encoding='utf-8') as csvfile:
         next(csvfile) # Skip the header
         for row in csvfile:
-            nif, name, phone, address, clinic = row.strip().split(",")
-            nurse = [nif, name, phone, address, clinic]
+            nif, name, phone, morada, clinic = row.strip().split(",")
+            nurse = [nif, name, phone, morada, clinic]
             nurses.append(nurse)
     return nurses
 
 def populate_medics():
     with open("medico.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("NIF,Name,Phone,Address,Speciality\n")
+        csvfile.write("nif,nome,telefone,morada,Speciality\n")
         for i in range(20):
             nif = random.randint(100000000, 999999999)
             name = fake.name()
@@ -83,8 +83,8 @@ def read_medics():
     with open("medico.csv", "r", encoding='utf-8') as csvfile:
         next(csvfile) # Skip the header
         for row in csvfile:
-            nif, name, phone, address, speciality = row.strip().split(",")
-            medic = [nif, name, phone, address, speciality]
+            nif, name, phone, morada, speciality = row.strip().split(",")
+            medic = [nif, name, phone, morada, speciality]
             medics.append(medic)
     return medics
 
@@ -116,7 +116,7 @@ def populate_trabalha():
 
     # Write the schedule to the CSV file
     with open("trabalha.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("NIF,Clinic,Weekday\n")
+        csvfile.write("nif,nome_clinica,Weekday\n")
         for nif, workdays in schedule.items():
             for clinic, day in workdays:
                 csvfile.write(f"{nif},{clinic},{day}\n")
@@ -132,7 +132,7 @@ def read_trabalha():
 
 def populate_patients():
     with open("paciente.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("SSN,NIF,Name,Phone,Address,Birthdate\n")
+        csvfile.write("ssn,nif,nome,telefone,morada,Birthdate\n")
         for i in range(MAX_PATIENTS):
             ssn = random.randint(100000000, 999999999)
             nif = random.randint(100000000, 999999999)
@@ -147,8 +147,8 @@ def read_patients():
     with open("paciente.csv", "r", encoding='utf-8') as csvfile:
         next(csvfile) # Skip the header
         for row in csvfile:
-            ssn, nif, name, phone, address, birthdate = row.strip().split(",")
-            patient = [ssn, nif, name, phone, address, birthdate]
+            ssn, nif, name, phone, morada, birthdate = row.strip().split(",")
+            patient = [ssn, nif, name, phone, morada, birthdate]
             patients.append(patient)
     return patients
 
@@ -199,7 +199,7 @@ def populate_consulta():
 
     # Write the schedule to the CSV file
     with open("consulta.csv","w", encoding='utf-8') as csvfile:
-        csvfile.write("ID,SSN,NIF,Clinic,Date,Time,SNSCODE\n")
+        csvfile.write("ID,ssn,nif,nome_clinica,Date,Time,SNSCODE\n")
         for id, (ssn, medic, clinic, date, time, snscod) in appointments.items():
             date_str = (datetime.datetime(2023, 1, 1) + datetime.timedelta(days=date-1)).strftime('%Y-%m-%d')
             csvfile.write(f"{id},{ssn},{medic},{clinic},{date_str},{time},{snscod}\n")
@@ -247,7 +247,7 @@ def populate_observacao():
             symptoms = random.sample(SYMPTOMS, symptoms_count)
             symptoms = [symptom for symptom in symptoms]
             for symptom in symptoms:
-                csvfile.write(f"{id},{symptom},N/A\n")
+                csvfile.write(f"{id},{symptom},NULL\n")
             metrics_count = random.randint(0, 3)
             metrics = random.sample(METRICS, metrics_count)
             metrics = [metric for metric in metrics]
@@ -266,63 +266,29 @@ def read_observacao():
 
 def csv_to_sql():
     with open("database.sql", "w", encoding='utf-8') as sqlfile:
-        with open("clinica.csv", "r", encoding='utf-8') as csvfile:
-            sqlfile.write("INSERT INTO Clinica (Name, Phone, Address) VALUES\n")
-            next(csvfile) # Skip the header
-            for row in csvfile:
-                name, phone, address = row.strip().split(",")
-                sqlfile.write(f"('{name}', {phone}, '{address}'),\n")
-        sqlfile.write("\n")  # Add a newline between different tables
+        files = ["clinica.csv", "enfermeiro.csv", "medico.csv", "trabalha.csv", "paciente.csv", "consulta.csv", "receita.csv", "observacao.csv"]
+        tables = ["Clinica", "Enfermeiro", "Medico", "Trabalha", "Paciente", "Consulta", "Receita", "Observacao"]
+        columns = [
+            "(nome, telefone, morada)",
+            "(nif, nome, telefone, morada, nome_clinica)",
+            "(nif, nome, telefone, morada, especialidade)",
+            "(nif, nome_clinica, dia_da_semana)",
+            "(ssn, nif, nome, telefone, morada, data_nasc)",
+            "(id, ssn, nif, nome, data, hora, codigo_sns)",
+            "(codigo_ssn, medicamento, quantidade)",
+            "(id, parametro, valor)"
+        ]
 
-        with open("enfermeiro.csv", "r", encoding='utf-8') as csvfile:
-            sqlfile.write("INSERT INTO Enfermeiro (NIF, Name, Phone, Address, Clinic) VALUES\n")
-            next(csvfile) # Skip the header
-            for row in csvfile:
-                nif, name, phone, address, clinic = row.strip().split(",")
-                sqlfile.write(f"({nif}, '{name}', {phone}, '{address}', '{clinic}'),\n")
-        sqlfile.write("\n")  # Add a newline between different tables
-        with open("medico.csv", "r", encoding='utf-8') as csvfile:
-            sqlfile.write("INSERT INTO Medico (NIF, Name, Phone, Address, Speciality) VALUES\n")
-            next(csvfile) # Skip the header
-            for row in csvfile:
-                nif, name, phone, address, speciality = row.strip().split(",")
-                sqlfile.write(f"({nif}, '{name}', {phone}, '{address}', '{speciality}'),\n")
-        sqlfile.write("\n")
-        with open("trabalha.csv", "r", encoding='utf-8') as csvfile:
-            sqlfile.write("INSERT INTO Trabalha (NIF, Clinic, Weekday) VALUES\n")
-            next(csvfile) # Skip the header
-            for row in csvfile:
-                nif, clinic, weekday = row.strip().split(",")
-                sqlfile.write(f"({nif}, '{clinic}', {weekday}),\n")
-        sqlfile.write("\n")
-        with open("paciente.csv", "r", encoding='utf-8') as csvfile:
-            sqlfile.write("INSERT INTO Paciente (SSN, NIF, Name, Phone, Address, Birthdate) VALUES\n")
-            next(csvfile) # Skip the header
-            for row in csvfile:
-                ssn, nif, name, phone, address, birthdate = row.strip().split(",")
-                sqlfile.write(f"({ssn}, {nif}, '{name}', {phone}, '{address}', '{birthdate}'),\n")
-        sqlfile.write("\n")
-        with open("consulta.csv", "r", encoding='utf-8') as csvfile:
-            sqlfile.write("INSERT INTO Consulta (ID, SSN, NIF, Clinic, Date, Time, SNSCODE) VALUES\n")
-            next(csvfile)
-            for row in csvfile:
-                id, ssn, medic, clinic, date, time, snscod = row.strip().split(",")
-                sqlfile.write(f"({id}, {ssn}, {medic}, '{clinic}', '{date}', {time}, {snscod}),\n")
-        sqlfile.write("\n")
-        with open("receita.csv", "r", encoding='utf-8') as csvfile:
-            sqlfile.write("INSERT INTO Receita (SNSCODE, Medicine, Dosage) VALUES\n")
-            next(csvfile)
-            for row in csvfile:
-                snscod, medicine, dosage = row.strip().split(",")
-                sqlfile.write(f"({snscod}, '{medicine}', {dosage}),\n")
-        sqlfile.write("\n")
-        with open("observacao.csv", "r", encoding='utf-8') as csvfile:
-            sqlfile.write("INSERT INTO Observacao (ID, Observation, Value) VALUES\n")
-            next(csvfile)
-            for row in csvfile:
-                id, observation, value = row.strip().split(",")
-                sqlfile.write(f"({id}, '{observation}', '{value}'),\n")
-        sqlfile.write("\n")
+        for file, table, column in zip(files, tables, columns):
+            with open(file, "r", encoding='utf-8') as csvfile:
+                sqlfile.write(f"INSERT INTO {table} {column} VALUES\n")
+                rows = csvfile.readlines()[1:]  # Skip the header
+                for row in rows[:-1]:
+                    values = ", ".join([f"'{x}'" if isinstance(x, str) else str(x) for x in row.strip().split(",")])
+                    sqlfile.write(f"({values}),\n")
+                values = ", ".join([f"'{x}'" if isinstance(x, str) else str(x) for x in rows[-1].strip().split(",")])
+                sqlfile.write(f"({values});\n")  # Last row with semicolon
+            sqlfile.write("\n")  # Add a newline between different tables
 
 if __name__ == "__main__":
     while(True):
