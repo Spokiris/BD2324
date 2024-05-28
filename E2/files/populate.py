@@ -12,10 +12,16 @@ MAX_PATIENTS = 5000
 MAX_NURSES = 6
 MAX_MEDICS = 60
 
+nifs = [i + 100000000 for i in range(5090)]
+phones = [i + 900000000 for i in range(5090)]
+ssns = []
+sns_codes = []
+
 fake = faker.Faker("pt_PT")
 
 def get_random_address():
     address = fake.city() + " " + fake.street_name() + " " + fake.building_number() + " " + fake.postcode()
+    address = address.replace("'", "")
     return address
 
 def populate_clinics():
@@ -23,7 +29,7 @@ def populate_clinics():
     with open("clinica.csv","w", encoding='utf-8') as csvfile:
         csvfile.write("nome, telefone, morada\n")
         for i in range(MAX_CLINICS):
-            name = "Clínica " + fake.company()
+            name = "Clínica " + fake.company().replace("'","")
             phone = random.randint(900000000, 999999999)
             address = get_random_address()
             csvfile.write(f"{name},{phone},{address}\n")
@@ -45,7 +51,7 @@ def populate_nurses():
         for i in range(MAX_CLINICS):
             for j in range(MAX_NURSES):
                 nif = random.randint(100000000, 999999999)
-                name = fake.name()
+                name = fake.name().replace("'","")
                 phone = random.randint(900000000, 999999999)
                 address = get_random_address()
                 csvfile.write(f"{nif},{name},{phone},{address},{clinics[i][0]}\n")
@@ -65,7 +71,7 @@ def populate_medics():
         csvfile.write("nif, nome, telefone, morada, especialidade\n")
         for i in range(20):
             nif = random.randint(100000000, 999999999)
-            name = fake.name()
+            name = fake.name().replace("'","")
             phone = random.randint(900000000, 999999999)
             address = get_random_address()
             speciality = "clínica geral"
@@ -73,7 +79,7 @@ def populate_medics():
         for i in range(8):
             for speciality in SPECIALITIES:
                 nif = random.randint(100000000, 999999999)
-                name = fake.name()
+                name = fake.name().replace("'","")
                 phone = random.randint(900000000, 999999999)
                 address = get_random_address()
                 csvfile.write(f"{nif},{name},{phone},{address},{speciality}\n")
@@ -87,6 +93,13 @@ def read_medics():
             medic = [nif, name, phone, morada, speciality]
             medics.append(medic)
     return medics
+
+# CREATE TABLE trabalha(
+# nif CHAR(9) NOT NULL REFERENCES medico,
+# nome VARCHAR(80) NOT NULL REFERENCES clinica,
+# dia_da_semana SMALLINT,
+# PRIMARY KEY (nif, dia_da_semana)
+# );
 
 def populate_trabalha():
     nifs = [medic[0] for medic in read_medics()]
@@ -133,8 +146,13 @@ def read_trabalha():
 def populate_patients():
     with open("paciente.csv","w", encoding='utf-8') as csvfile:
         csvfile.write("ssn, nif, nome, telefone, morada, data_nasc\n")
+        ssns = {random.randint(100000000, 999999999) for _ in range(MAX_PATIENTS)}
+        # check if ssns are unique
+        while len(ssns) < MAX_PATIENTS:
+            ssns.add(random.randint(100000000, 999999999))
+        ssns = list(ssns)
         for i in range(MAX_PATIENTS):
-            ssn = random.randint(100000000, 999999999)
+            ssn = ssns.pop()
             nif = random.randint(100000000, 999999999)
             name = fake.name()
             phone = random.randint(900000000, 999999999)
@@ -165,7 +183,9 @@ def populate_consulta():
         clinic = random.choice(clinics)
         medic = random.choice(medics)
         date = random.randint(1, 730)
-        time = random.randint(8, 20)  # Assuming the clinic operates from 8:00 to 20:00
+        hours = random.randint(8, 20)
+        minutes = random.choice([0, 30])
+        time = datetime.time(hours, minutes, 0)  # Assuming the clinic operates from 8:00 to 20:00
         snscod = random.randint(100000000000, 999999999999)
         id = len(appointments) + 1
         appointments[id] = (ssn, medic, clinic, date, time, snscod)
@@ -178,7 +198,9 @@ def populate_consulta():
             while len(ids) < 20:
                 ssn = random.choice(patients)
                 medic = random.choice(medics)
-                time = random.randint(8, 20)
+                hours = random.randint(8, 20)
+                minutes = random.choice([0, 30])
+                time = datetime.time(hours, minutes, 0)
                 snscod = ''.join(random.choices('0123456789', k=12))
                 id = len(appointments) + 1
                 appointments[id] = (ssn, medic, clinic, date, time, snscod)
@@ -190,7 +212,9 @@ def populate_consulta():
             while len(ids) < 2:
                 ssn = random.choice(patients)
                 clinic = random.choice(clinics)
-                time = random.randint(8, 20)
+                hours = random.randint(8, 20)
+                minutes = random.choice([0, 30])
+                time = datetime.time(hours, minutes, 0)
                 snscod = ''.join(random.choices('0123456789', k=12))
                 id = len(appointments) + 1
                 appointments[id] = (ssn, medic, clinic, date, time, snscod)
@@ -247,7 +271,7 @@ def populate_observacao():
             symptoms = random.sample(SYMPTOMS, symptoms_count)
             symptoms = [symptom for symptom in symptoms]
             for symptom in symptoms:
-                csvfile.write(f"{id},{symptom},NULL\n")
+                csvfile.write(f"{id},{symptom},{"NULL"}\n")
             metrics_count = random.randint(0, 3)
             metrics = random.sample(METRICS, metrics_count)
             metrics = [metric for metric in metrics]
@@ -272,10 +296,10 @@ def csv_to_sql():
             "(nome, telefone, morada)",
             "(nif, nome, telefone, morada, nome_clinica)",
             "(nif, nome, telefone, morada, especialidade)",
-            "(nif, nome_clinica, dia_da_semana)",
+            "(nif, nome, dia_da_semana)",
             "(ssn, nif, nome, telefone, morada, data_nasc)",
             "(id, ssn, nif, nome, data, hora, codigo_sns)",
-            "(codigo_ssn, medicamento, quantidade)",
+            "(codigo_sns, medicamento, quantidade)",
             "(id, parametro, valor)"
         ]
 
@@ -284,9 +308,9 @@ def csv_to_sql():
                 sqlfile.write(f"INSERT INTO {table} {column} VALUES\n")
                 rows = csvfile.readlines()[1:]  # Skip the header
                 for row in rows[:-1]:
-                    values = ", ".join([f"'{x}'" if isinstance(x, str) else str(x) for x in row.strip().split(",")])
+                    values = ", ".join([f"'{x}'" if isinstance(x, str) and x != "NULL" else x for x in row.strip().split(",")])
                     sqlfile.write(f"({values}),\n")
-                values = ", ".join([f"'{x}'" if isinstance(x, str) else str(x) for x in rows[-1].strip().split(",")])
+                values = ", ".join([f"'{x}'" if isinstance(x, str) and x != "NULL" else x for x in rows[-1].strip().split(",")])
                 sqlfile.write(f"({values});\n")  # Last row with semicolon
             sqlfile.write("\n")  # Add a newline between different tables
 
