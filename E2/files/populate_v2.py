@@ -2,7 +2,6 @@ import random
 import datetime
 import os
 import faker
-import itertools
 
 MEDICINE = [['Adderall'], ['Amitriptilina'], ['Amlodipina'], ['Amoxicilina'], ['Ativan'], ['Atorvastatina'], ['Azitromicina'], ['Benzonatato'], ['Botox'], ['Brilinta'], ['Bunavail'], ['Buprenorfina'], ['Cefalexina'], ['Ciprofloxacina'], ['Citalopram'], ['Clindamicina'], ['Clonazepam'], ['Ciclobenzaprina'], ['Cymbalta'], ['Doxiciclina'], ['Dupixente'], ['Entresto'], ['Entívio'], ['Farxiga'], ['Adesivo de Fentanil'], ['Gabapentina'], ['Gemtesa'], ['Humira'], ['Hidroclorotiazida'], ['Ibuprofeno'], ['Imbruvica'], ['Janúvia'], ['Jardiance'], ['Lexapro'], ['Lisinopril'], ['Lofexidina'], ['Loratadina'], ['Lírica'], ['Melatonina'], ['Meloxicam'], ['Metformina'], ['Metadona'], ['Metotrexato'], ['Metoprolol'], ['Mounjaro'], ['Naltrexona'], ['Naproxeno'], ['Narcano'], ['Nurtec'], ['Omeprazol'], ['Opdivo'], ['Otezla'], ['Ozempico'], ['Pantoprazol'], ['Plano B'], ['Prednisona'], ['Probufina'], ['Qulipta'], ['Quviviq'], ['Ribelso'], ['Tepezza'], ['Tramadol'], ['Trazodona'], ['Viagra'], ['Vraylar'], ['Wegovy'], ['Wellbutrin'], ['Xanax'], ['Ervoy'], ['Zubsolv']]
 SPECIALITIES = ["radiologia","ortopedia","cardiologia","neurologia","oncologia"]
