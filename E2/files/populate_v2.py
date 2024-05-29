@@ -124,41 +124,17 @@ def gen_medics():
 
 
 def gen_works():
-    days_of_week = list(range(7))  # 1 (Monday) to 7 (Sunday)
-
-    medic_clinic_count = {medic[0]: [] for medic in medics}
-    medic_day_count = {medic[0]: [] for medic in medics}
-    clinic_day_medic_count = {(clinic[0], day): 0 for clinic in clinics for day in days_of_week}
-
-    for _ in range(len(medics) * len(clinics) * len(days_of_week)):
-        medic = random.choice(medics)
-        while len(medic_day_count[medic[0]]) >= 7:
-            medic = random.choice(medics)
-            
-        clinic = random.choice(clinics)
-        day_of_week = random.choice(days_of_week)
-        
-        while day_of_week in medic_day_count[medic[0]]:
-            day_of_week = random.choice(days_of_week)
-            
-        if len(medic_clinic_count[medic[0]]) < 2 or clinic_day_medic_count[(clinic[0], day_of_week)] < 8:
-            works.append([medic[0], clinic[0], day_of_week])
-            medic_clinic_count[medic[0]].append(clinic[0])
-            medic_day_count[medic[0]].append(day_of_week)
-            clinic_day_medic_count[(clinic[0], day_of_week)] += 1
 
     for medic in medics:
-        while len(medic_clinic_count[medic[0]]) < 2:
-            clinic = random.choice(clinics)
-            day_of_week = random.choice(days_of_week)
+        assigned_clinics = random.choices(clinics, k=7)
+        assigned_days = range(7)
+        for clinic, day in zip(assigned_clinics, assigned_days):
+            work = []
+            work.append(medic[0])
+            work.append(clinic[0])
+            work.append(day)
+            works.append(work)        
             
-            while day_of_week in medic_day_count[medic[0]]:
-                day_of_week = random.choice(days_of_week)
-                
-            works.append([medic[0], clinic[0], day_of_week])
-            medic_clinic_count[medic[0]].append(clinic[0])
-            clinic_day_medic_count[(clinic[0], day_of_week)] += 1
-    
     # Write to file
     with open("trabalha.csv","w", encoding='utf-8') as csvfile:
         csvfile.write("nif, nome, dia_da_semana\n")
@@ -213,41 +189,76 @@ def gen_patients():
 # Cada médico tem pelo menos 2 consultas por dia que trabalhou
 # Cada Paciente tem pelo menos 1 consulta por ano
 
-import random
-from datetime import datetime, timedelta
+def generate_times():
+    morning_start_time = datetime.strptime("08:00", "%H:%M")
+    morning_end_time = datetime.strptime("13:00", "%H:%M")
+    afternoon_start_time = datetime.strptime("14:00", "%H:%M")
+    afternoon_end_time = datetime.strptime("19:00", "%H:%M")
+    times = []
+    
+    current_time = morning_start_time
+    while current_time <= morning_end_time:
+        times.append(current_time.strftime("%H:%M"))
+        current_time += timedelta(minutes=30)
+    
+    current_time = afternoon_start_time
+    while current_time <= afternoon_end_time:
+        times.append(current_time.strftime("%H:%M"))
+        current_time += timedelta(minutes=30)
+    
+    return times
+
+from datetime import *
 
 def gen_appointments():
     codigo_sns = 100000000000
     id_counter = 1
-    dates = [datetime(2023, 1, 1) + timedelta(days=i) for i in range(730)]
-    weekdays = [date.weekday() for date in dates]
-    medic_date_hour_count = {medic[0]: {date: [] for date in dates} for medic in medics}
-    patient_year_count = {patient[0]: {2023: 0, 2024: 0} for patient in patients}
-    times = [(datetime.min + timedelta(hours=8+i//2, minutes=30*(i%2))).time() for i in range(24)]  # every 30 minutes from 8:00 to 20:00
-    nif_appointment_set = set()
-    ssn_appointment_set = set()
+    first_day = datetime(2023, 1, 1)
+    first_weekday = first_day.weekday()
+    times = generate_times()
+    
+    for i in range(731):
+        patients_temp = patients.copy()
+        for work in works:
+            times_temp = times.copy()
+            if work[2] == (first_day.weekday() + i) % 7: # x % 7 = (0-6) -> 0 = segunda, 6 = domingo
+                 for _ in range(3):
+                    appointment = []
+                    appointment.append(id_counter)
+                    patient = random.choice(patients_temp)
+                    patients_temp.remove(patient)
+                    appointment.append(patient[0])
+                    appointment.append(work[0])
+                    appointment.append(work[1])
+                    appointment.append((first_day + timedelta(days=i)).date())
+                    time = random.choice(times_temp)
+                    times_temp.remove(time)
+                    appointment.append(time)
+                    appointment.append(codigo_sns)
+                    appointments.append(appointment)
+                    id_counter += 1
+                    codigo_sns += 1
 
-    for date, weekday in zip(dates, weekdays):
-        for clinic in clinics:
-            medics_working_today = [work[0] for work in works if work[1] == clinic[0] and work[2] == weekday]
-            patients_today = random.sample(patients, random.randint(20,48))
-            
-            for patient in patients_today:
-                time = random.choice(times)
-                medic = random.choice(medics_working_today)
-                while time in medic_date_hour_count[medic][date] or (medic, date, time) in nif_appointment_set or (patient[0], date, time) in ssn_appointment_set:
-                    time = random.choice(times)
+    seen = set()
+    appointments_no_duplicates = []
+
+    for appointment in appointments:
+        
+        key_nif = (appointment[1], appointment[4], appointment[5])
+        key_ssn = (appointment[2], appointment[4], appointment[5])
+        
+        if key_nif not in seen and key_ssn not in seen:
+            appointments_no_duplicates.append(appointment)
+            seen.add(key_nif)
+            seen.add(key_ssn)
+
+    appointments.clear()
+    for i in appointments_no_duplicates:
+        appointments.append(i)
                 
-                nif_appointment_set.add((medic, date, time))
-                ssn_appointment_set.add((patient[0], date, time))
-                
-                appointments.append([id_counter, patient[0], medic, clinic[0], date.date(), time, codigo_sns])
-                id_counter += 1
-                codigo_sns += 1
-                patient_year_count[patient[0]][date.year] += 1
     with open("consulta.csv","w", encoding='utf-8') as csvfile:
         csvfile.write("id, ssn, nif, nome, data, hora, codigo_sns\n")
-        for appointment in appointments:
+        for appointment in appointments_no_duplicates:
             csvfile.write(f"{appointment[0]}, {appointment[1]}, {appointment[2]}, {appointment[3]}, {appointment[4]}, {appointment[5]}, {appointment[6]}\n")
 
 # receita:
