@@ -1,11 +1,26 @@
-#!/usr/bin/python3
 import os
 from logging.config import dictConfig
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 
-# Configuração de logs
+from flask import Flask, jsonify, request
+from psycopg.rows import namedtuple_row
+from psycopg_pool import ConnectionPool
+
+# Use the DATABASE_URL environment variable if it exists, otherwise use the default.
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+psycopg://postgres:postgres@postgres/postgres")
+
+pool = ConnectionPool(
+    conninfo=DATABASE_URL,
+    kwargs={
+        "autocommit": True,
+        "row_factory": namedtuple_row,
+    },
+    min_size=4,
+    max_size=10,
+    open=True,
+    name="postgres_pool",
+    timeout=5,
+)
+
 dictConfig(
     {
         "version": 1,
@@ -27,124 +42,114 @@ dictConfig(
 
 app = Flask(__name__)
 app.config.from_prefixed_env()
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'postgresql+psycopg://postgres:postgres@postgres/postgres')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
 log = app.logger
 
-# Modelos baseados no esquema fornecido
-class Clinica(db.Model):
-    __tablename__ = 'clinica'
-    nome = db.Column(db.String(80), primary_key=True)
-    telefone = db.Column(db.String(15), unique=True, nullable=False)
-    morada = db.Column(db.String(255), unique=True, nullable=False)
 
-class Medico(db.Model):
-    __tablename__ = 'medico'
-    nif = db.Column(db.String(9), primary_key=True)
-    nome = db.Column(db.String(80), unique=True, nullable=False)
-    telefone = db.Column(db.String(15), nullable=False)
-    morada = db.Column(db.String(255), nullable=False)
-    especialidade = db.Column(db.String(80), nullable=False)
+@app.route("/", methods=["GET"])
+def list_clinics():
+    """Lista todas as clínicas (nome e morada)."""
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            clinics = cur.execute("SELECT nome, morada FROM clinicas").fetchall()
+            log.debug(f"Found {cur.rowcount} clinics.")
+    return jsonify(clinics), 200
 
-class Trabalha(db.Model):
-    __tablename__ = 'trabalha'
-    nif = db.Column(db.String(9), db.ForeignKey('medico.nif'), primary_key=True)
-    nome = db.Column(db.String(80), db.ForeignKey('clinica.nome'), primary_key=True)
-    dia_da_semana = db.Column(db.SmallInteger)
 
-class Paciente(db.Model):
-    __tablename__ = 'paciente'
-    ssn = db.Column(db.String(11), primary_key=True)
-    nif = db.Column(db.String(9), unique=True, nullable=False)
-    nome = db.Column(db.String(80), nullable=False)
-    telefone = db.Column(db.String(15), nullable=False)
-    morada = db.Column(db.String(255), nullable=False)
-    data_nasc = db.Column(db.Date, nullable=False)
+@app.route("/c/<clinica>/", methods=["GET"])
+def list_specialties(clinica):
+    """Lista todas as especialidades oferecidas na <clinica>."""
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            specialties = cur.execute(
+                "SELECT especialidade FROM especialidades WHERE clinica = %(clinica)s",
+                {"clinica": clinica}
+            ).fetchall()
+            log.debug(f"Found {cur.rowcount} specialties for clinic {clinica}.")
+    return jsonify(specialties), 200
 
-class Consulta(db.Model):
-    __tablename__ = 'consulta'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    ssn = db.Column(db.String(11), db.ForeignKey('paciente.ssn'), nullable=False)
-    nif = db.Column(db.String(9), db.ForeignKey('medico.nif'), nullable=False)
-    nome = db.Column(db.String(80), db.ForeignKey('clinica.nome'), nullable=False)
-    data = db.Column(db.Date, nullable=False)
-    hora = db.Column(db.Time, nullable=False)
-    codigo_sns = db.Column(db.String(12), unique=True)
 
-class Receita(db.Model):
-    __tablename__ = 'receita'
-    codigo_sns = db.Column(db.String(12), db.ForeignKey('consulta.codigo_sns'), primary_key=True)
-    medicamento = db.Column(db.String(155), primary_key=True)
-    quantidade = db.Column(db.SmallInteger, nullable=False)
+@app.route("/c/<clinica>/<especialidade>/", methods=["GET"])
+def list_doctors(clinica, especialidade):
+    """Lista todos os médicos (nome) da <especialidade> que trabalham na <clínica> e os primeiros três horários disponíveis para consulta de cada um deles (data e hora)."""
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            doctors = cur.execute(
+                """
+                SELECT medicos.nome, horarios.data_hora
+                FROM medicos
+                JOIN horarios ON medicos.id = horarios.medico_id
+                WHERE medicos.clinica = %(clinica)s
+                AND medicos.especialidade = %(especialidade)s
+                ORDER BY horarios.data_hora ASC
+                LIMIT 3;
+                """,
+                {"clinica": clinica, "especialidade": especialidade}
+            ).fetchall()
+            log.debug(f"Found {cur.rowcount} doctors and available slots for clinic {clinica}, specialty {especialidade}.")
+    return jsonify(doctors), 200
 
-class Observacao(db.Model):
-    __tablename__ = 'observacao'
-    id = db.Column(db.Integer, db.ForeignKey('consulta.id'), primary_key=True)
-    parametro = db.Column(db.String(155), primary_key=True)
-    valor = db.Column(db.Float)
 
-# Endpoints
-@app.route('/ping', methods=['GET'])
+@app.route("/a/<clinica>/registar/", methods=["POST"])
+def register_appointment(clinica):
+    """Registra uma marcação de consulta na <clinica> na base de dados."""
+    data = request.json
+    paciente = data.get('paciente')
+    medico = data.get('medico')
+    data_hora = data.get('data_hora')
+
+    if not paciente or not medico or not data_hora:
+        return jsonify({"message": "Paciente, médico e data/hora são necessários.", "status": "error"}), 400
+
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO consultas (clinica, paciente, medico, data_hora)
+                    VALUES (%(clinica)s, %(paciente)s, %(medico)s, %(data_hora)s);
+                    """,
+                    {"clinica": clinica, "paciente": paciente, "medico": medico, "data_hora": data_hora}
+                )
+                log.debug(f"Inserted new appointment for clinic {clinica}, patient {paciente}, doctor {medico} at {data_hora}.")
+            except Exception as e:
+                return jsonify({"message": str(e), "status": "error"}), 500
+    return jsonify({"message": "Consulta registrada com sucesso.", "status": "success"}), 201
+
+
+@app.route("/a/<clinica>/cancelar/", methods=["POST"])
+def cancel_appointment(clinica):
+    """Cancela uma marcação de consulta que ainda não se realizou na <clinica>."""
+    data = request.json
+    paciente = data.get('paciente')
+    medico = data.get('medico')
+    data_hora = data.get('data_hora')
+
+    if not paciente or not medico or not data_hora:
+        return jsonify({"message": "Paciente, médico e data/hora são necessários.", "status": "error"}), 400
+
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute(
+                    """
+                    DELETE FROM consultas
+                    WHERE clinica = %(clinica)s AND paciente = %(paciente)s AND medico = %(medico)s AND data_hora = %(data_hora)s;
+                    """,
+                    {"clinica": clinica, "paciente": paciente, "medico": medico, "data_hora": data_hora}
+                )
+                if cur.rowcount == 0:
+                    return jsonify({"message": "Consulta não encontrada ou já realizada.", "status": "error"}), 404
+                log.debug(f"Deleted appointment for clinic {clinica}, patient {paciente}, doctor {medico} at {data_hora}.")
+            except Exception as e:
+                return jsonify({"message": str(e), "status": "error"}), 500
+    return jsonify({"message": "Consulta cancelada com sucesso.", "status": "success"}), 200
+
+
+@app.route("/ping", methods=["GET"])
 def ping():
     log.debug("ping!")
-    return jsonify({"message": "ZARA!"}), 200
+    return jsonify({"message": "pong!", "status": "success"})
 
-@app.route('/')
-def listar_clinicas():
-    clinicas = Clinica.query.all()
-    return jsonify([{'nome': clinica.nome, 'telefone': clinica.telefone, 'morada': clinica.morada} for clinica in clinicas])
-
-@app.route('/c/<clinica>/', methods=['GET'])
-def listar_especialidades(clinica):
-    clinica_obj = Clinica.query.filter_by(nome=clinica).first_or_404()
-    medicos = Medico.query.join(Trabalha, Trabalha.nif == Medico.nif).filter(Trabalha.nome == clinica).all()
-    especialidades = list(set([medico.especialidade for medico in medicos]))
-    return jsonify(especialidades)
-
-@app.route('/c/<clinica>/<especialidade>/', methods=['GET'])
-def listar_medicos(clinica, especialidade):
-    clinica_obj = Clinica.query.filter_by(nome=clinica).first_or_404()
-    medicos = Medico.query.filter_by(especialidade=especialidade).join(Trabalha, Trabalha.nif == Medico.nif).filter(Trabalha.nome == clinica).all()
-    resultado = []
-    for medico in medicos:
-        consultas = Consulta.query.filter_by(nif=medico.nif).order_by(Consulta.data, Consulta.hora).limit(3).all()
-        horarios = [{'data': consulta.data.isoformat(), 'hora': consulta.hora.isoformat()} for consulta in consultas]
-        resultado.append({'nome': medico.nome, 'horarios': horarios})
-    return jsonify(resultado)
-
-@app.route('/a/<clinica>/registar/', methods=['POST'])
-def registar_marcacao(clinica):
-    data = request.json
-    clinica_obj = Clinica.query.filter_by(nome=clinica).first_or_404()
-    medico = Medico.query.filter_by(nome=data['medico']).join(Trabalha, Trabalha.nif == Medico.nif).filter(Trabalha.nome == clinica).first_or_404()
-    paciente = Paciente.query.filter_by(nif=data['paciente_nif']).first_or_404()
-    data_hora = datetime.fromisoformat(data['data_hora'])
-    
-    if data_hora <= datetime.now():
-        return jsonify({'error': 'Data e hora devem ser no futuro.'}), 400
-
-    nova_consulta = Consulta(ssn=paciente.ssn, nif=medico.nif, nome=clinica, data=data_hora.date(), hora=data_hora.time(), codigo_sns=data.get('codigo_sns'))
-    db.session.add(nova_consulta)
-    db.session.commit()
-    return jsonify({'message': 'Marcação registrada com sucesso.'})
-
-@app.route('/a/<clinica>/cancelar/', methods=['POST'])
-def cancelar_marcacao(clinica):
-    data = request.json
-    clinica_obj = Clinica.query.filter_by(nome=clinica).first_or_404()
-    medico = Medico.query.filter_by(nome=data['medico']).join(Trabalha, Trabalha.nif == Medico.nif).filter(Trabalha.nome == clinica).first_or_404()
-    data_hora = datetime.fromisoformat(data['data_hora'])
-    
-    marcacao = Consulta.query.filter_by(ssn=data['paciente_nif'], nif=medico.nif, data=data_hora.date(), hora=data_hora.time()).first_or_404()
-    
-    if marcacao.data <= datetime.now().date() and marcacao.hora <= datetime.now().time():
-        return jsonify({'error': 'Não é possível cancelar uma marcação passada.'}), 400
-    
-    db.session.delete(marcacao)
-    db.session.commit()
-    return jsonify({'message': 'Marcação cancelada com sucesso.'})
 
 if __name__ == "__main__":
     app.run()
-
