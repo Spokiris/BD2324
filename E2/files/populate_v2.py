@@ -214,15 +214,15 @@ def gen_appointments():
     codigo_sns = 100000000000
     id_counter = 1
     first_day = datetime(2023, 1, 1)
-    first_weekday = first_day.weekday()
     times = generate_times()
     
     for i in range(731):
         patients_temp = patients.copy()
+        day = first_day + timedelta(days=i)
         for work in works:
-            times_temp = times.copy()
-            if work[2] == (first_day.weekday() + i) % 7: # x % 7 = (0-6) -> 0 = segunda, 6 = domingo
-                 for _ in range(3):
+            if work[2] == day.weekday(): # x % 7 = (0-6) -> 0 = segunda, 6 = domingo
+                times_temp = times.copy()
+                for _ in range(3):
                     appointment = []
                     appointment.append(id_counter)
                     patient = random.choice(patients_temp)
@@ -230,7 +230,7 @@ def gen_appointments():
                     appointment.append(patient[0])
                     appointment.append(work[0])
                     appointment.append(work[1])
-                    appointment.append((first_day + timedelta(days=i)).date())
+                    appointment.append(day.date())
                     time = random.choice(times_temp)
                     times_temp.remove(time)
                     appointment.append(time)
