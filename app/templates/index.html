@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listar Clínicas</title>
+</head>
+<body>
+    <h1>Lista de Clínicas</h1>
+    <ul id="clinicas">
+    </ul>
+
+    <script>
+        fetch('/').then(response => response.json())
+                   .then(data => {
+                       const clinicasList = document.getElementById('clinicas');
+                       data.forEach(clinica => {
+                           const li = document.createElement('li');
+                           li.textContent = `${clinica.nome} - ${clinica.morada}`;
+                           clinicasList.appendChild(li);
+                       });
+                   });
+    </script>
+</body>
+</html>

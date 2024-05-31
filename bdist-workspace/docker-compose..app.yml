@@ -13,6 +13,7 @@ services:
     user: "jovyan:users"
     volumes:
       - ../app:/home/jovyan/app
+      - ../app/templates:/app/templates
       - ./data:/home/jovyan/data
       - ./images:/home/jovyan/images
       - ./work:/home/jovyan/work

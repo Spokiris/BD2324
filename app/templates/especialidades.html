@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listar Especialidades</title>
+</head>
+<body>
+    <h1>Lista de Especialidades</h1>
+    <ul id="especialidades">
+    </ul>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const clinica = urlParams.get('clinica');
+
+        fetch(`/c/${clinica}/`).then(response => response.json())
+                                .then(data => {
+                                    const especialidadesList = document.getElementById('especialidades');
+                                    data.forEach(especialidade => {
+                                        const li = document.createElement('li');
+                                        li.textContent = especialidade;
+                                        especialidadesList.appendChild(li);
+                                    });
+                                });
+    </script>
+</body>
+</html>

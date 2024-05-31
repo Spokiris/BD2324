@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from datetime import datetime
 from psycopg import IntegrityError
-from sqlalchemy import create_engine, Column, Integer, String, Date, Time, ForeignKey, UniqueConstraint
+from sqlalchemy import create_engine, Column, Integer, String, Date, Time, ForeignKey, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from collections import defaultdict
@@ -16,7 +16,7 @@ Session = sessionmaker(bind=engine)
 # Definindo as classes das tabelas do banco de dados
 class Consulta(Base):
     __tablename__ = 'consulta'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, server_default=text("nextval('consulta_id_seq')"))
     ssn = Column(String(11), ForeignKey('paciente.ssn'), nullable=False)
     nif = Column(String(9), ForeignKey('medico.nif'), nullable=False)
     nome = Column(String(80), ForeignKey('clinica.nome'), nullable=False)
@@ -110,7 +110,6 @@ def list_doctors(clinica, especialidade):
     session.close()
     return jsonify({'doctors': list(appointments.keys()), 'appointments': dict(appointments)})
 
-# Endpoint para registrar uma marcação de consulta
 @app.route('/a/<clinica>/registar/', methods=['POST'])
 def register_appointment(clinica):
     data = request.json
@@ -118,12 +117,15 @@ def register_appointment(clinica):
     medico = data['medico']
     data_hora = datetime.strptime(data['data_hora'], "%Y-%m-%d %H:%M:%S")
     session = Session()
+
     try:
         nova_consulta = Consulta(ssn=paciente['ssn'], nif=medico['nif'], nome=clinica, data=data_hora.date(), hora=data_hora.time())
         session.add(nova_consulta)
         session.commit()
+        consulta_id = nova_consulta.id  # Obter o ID da nova consulta
+        print("Consulta ID: ", consulta_id)    
         session.close()
-        return jsonify({"message": "Marcação registrada com sucesso"})
+        return jsonify({"message": "Marcação registrada com sucesso", "consulta_id": consulta_id})
     except IntegrityError as e:
         session.rollback()
         session.close()
@@ -134,11 +136,9 @@ def register_appointment(clinica):
 @app.route('/a/<clinica>/cancelar/', methods=['POST'])
 def cancel_appointment(clinica):
     data = request.json
-    paciente = data['paciente']
-    medico = data['medico']
-    data_hora = datetime.strptime(data['data_hora'], "%Y-%m-%d %H:%M:%S")
+    consulta_id = data['consulta_id']  # Aqui você recebe o índice da consulta a ser cancelada
     session = Session()
-    consulta = session.query(Consulta).filter_by(ssn=paciente['ssn'], nif=medico['nif'], nome=clinica, data=data_hora.date(), hora=data_hora.time()).first()
+    consulta = session.query(Consulta).filter_by(id=consulta_id).first()
     if consulta:
         session.delete(consulta)
         session.commit()
@@ -147,7 +147,6 @@ def cancel_appointment(clinica):
     else:
         session.close()
         return jsonify({"message": "Marcação não encontrada"}), 404
-
 if __name__ == '__main__':
     app.run(debug=True)
 

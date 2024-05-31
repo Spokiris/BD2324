@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listar Médicos</title>
+</head>
+<body>
+    <h1>Lista de Médicos</h1>
+    <ul id="medicos">
+    </ul>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const clinica = urlParams.get('clinica');
+        const especialidade = urlParams.get('especialidade');
+
+        fetch(`/c/${clinica}/${especialidade}/`).then(response => response.json())
+                                               .then(data => {
+                                                   const medicosList = document.getElementById('medicos');
+                                                   data.forEach(medico => {
+                                                       const li = document.createElement('li');
+                                                       li.textContent = `${medico.nome} - Horários disponíveis: ${medico.horarios.map(horario => `${horario.data} às ${horario.hora}`).join(', ')}`;
+                                                       medicosList.appendChild(li);
+                                                   });
+                                               });
+    </script>
+</body>
+</html>
