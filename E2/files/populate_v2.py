@@ -26,6 +26,7 @@ observations = []
 
 fake = faker.Faker("pt_PT")
 
+
 def get_random_address(char_limit=255):
     address = fake.city() + " " + fake.street_name() + " " + fake.building_number() + " " + fake.postcode()
     address = address.replace("'", "")
@@ -191,9 +192,9 @@ def gen_patients():
 
 def generate_times():
     morning_start_time = datetime.strptime("08:00", "%H:%M")
-    morning_end_time = datetime.strptime("13:00", "%H:%M")
+    morning_end_time = datetime.strptime("12:30", "%H:%M")
     afternoon_start_time = datetime.strptime("14:00", "%H:%M")
-    afternoon_end_time = datetime.strptime("19:00", "%H:%M")
+    afternoon_end_time = datetime.strptime("18:30", "%H:%M")
     times = []
     
     current_time = morning_start_time
@@ -269,9 +270,15 @@ def gen_appointments():
 # 80% das consultas tem receita médica associada, 
 # e as receitas têm 1 a 6 medicamentos em
 # quantidades entre 1 e 3
+limit_date = datetime(2024, 5, 30).date()
 
 def gen_prescriptions():
     for appointment in appointments:
+        date = appointment[4]
+        
+        if date > limit_date:
+            break
+        
         if random.random() < 0.8:
             medicine = ""
             prescription = []
@@ -298,6 +305,9 @@ def gen_prescriptions():
 
 def gen_observations():
     for appointment in appointments:
+        date = appointment[4]
+        if date > limit_date:
+            break
         app_sypmtoms = []
         for _ in range(random.randint(1, 5)):
             observation = []
